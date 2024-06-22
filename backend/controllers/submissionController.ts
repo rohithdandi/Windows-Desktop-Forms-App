@@ -1,27 +1,31 @@
-const fs = require("fs");
-const path = require("path");
+import { Request, Response } from "express";
+import fs from "fs";
+import path from "path";
+
 const dbPath = path.join(__dirname, "../db.json");
 
 // @desc    always return true
 // @route   POST /api/submission/ping
 // @access  Public
-const Ping = async (req, res) => {
+export const Ping = async (req: Request, res: Response): Promise<void> => {
   res.send("true");
 };
 
 // @desc    add data to database
 // @route   POST /api/submission/Submit
 // @access  Public
-const Submit = async (req, res) => {
+export const Submit = async (req: Request, res: Response): Promise<void> => {
   const { name, email, phone, link, time } = req.body;
 
   if (!name || !email || !phone || !link) {
-    return res.status(400).send("All fields are required");
+    res.status(400).send("All fields are required");
+    return;
   }
 
   fs.readFile(dbPath, "utf8", (err, data) => {
     if (err) {
-      return res.status(500).send("Error reading database");
+      res.status(500).send("Error reading database");
+      return;
     }
 
     const db = JSON.parse(data);
@@ -38,10 +42,11 @@ const Submit = async (req, res) => {
 
     fs.writeFile(dbPath, JSON.stringify(db, null, 2), (err) => {
       if (err) {
-        return res.status(500).send("Error writing to database");
+        res.status(500).send("Error writing to database");
+        return;
       }
 
-      res.status(201).send("Submission succesful");
+      res.status(201).send("Submission successful");
     });
   });
 };
@@ -49,28 +54,31 @@ const Submit = async (req, res) => {
 // @desc    send submission data
 // @route   GET /api/submission/read/:id
 // @access  Public
-const Read = async (req, res) => {
+export const Read = async (req: Request, res: Response): Promise<void> => {
   const index = parseInt(req.params.id);
 
   fs.readFile(dbPath, "utf8", (err, data) => {
     if (err) {
-      return res.status(500).send("Error reading database");
+      res.status(500).send("Error reading database");
+      return;
     }
 
     try {
       const db = JSON.parse(data);
 
       if (isNaN(index) || index < 0 || index >= db.submissions.length) {
-        return res.status(404).send("Invalid index");
+        res.status(404).send("Invalid index");
+        return;
       }
 
       // Filter submissions where deleted is false
       const filteredSubmissions = db.submissions.filter(
-        (submission) => !submission.deleted
+        (submission: { deleted: boolean }) => !submission.deleted
       );
 
       if (index < 0 || index >= filteredSubmissions.length) {
-        return res.status(404).send("Submission not found");
+        res.status(404).send("Submission not found");
+        return;
       }
 
       const results = {
@@ -86,51 +94,51 @@ const Read = async (req, res) => {
   });
 };
 
-const Delete = async (req, res) => {
+// @desc    delete submission data
+// @route   DELETE /api/submission/delete/:id
+// @access  Public
+export const Delete = async (req: Request, res: Response): Promise<void> => {
   const index = parseInt(req.params.id);
 
   fs.readFile(dbPath, "utf8", (err, data) => {
     if (err) {
-      return res.status(500).send("Error reading database");
+      res.status(500).send("Error reading database");
+      return;
     }
 
     try {
       const db = JSON.parse(data);
 
       if (isNaN(index) || index < 0 || index >= db.submissions.length) {
-        return res.status(404).send("Invalid index");
+        res.status(404).send("Invalid index");
+        return;
       }
 
       // Filter submissions where deleted is false
       const filteredSubmissions = db.submissions.filter(
-        (submission) => !submission.deleted
+        (submission: { deleted: boolean }) => !submission.deleted
       );
 
       if (index < 0 || index >= filteredSubmissions.length) {
-        return res.status(404).send("Submission not found");
+        res.status(404).send("Submission not found");
+        return;
       }
 
       filteredSubmissions[index].deleted = true;
       const originalIndex = db.submissions.findIndex(
-        (sub) => sub.email === filteredSubmissions[index].email
+        (sub: { email: string }) => sub.email === filteredSubmissions[index].email
       );
       db.submissions[originalIndex].deleted = true;
-      //console.log(db.submissions[originalIndex].deleted);
+
       fs.writeFile(dbPath, JSON.stringify(db, null, 2), (err) => {
         if (err) {
-          return res.status(500).send("Error writing to database");
+          res.status(500).send("Error writing to database");
+          return;
         }
-        res.status(200).send("Submission succesfully deleted");
+        res.status(200).send("Submission successfully deleted");
       });
     } catch (error) {
       res.status(500).send("Error parsing database data");
     }
   });
-};
-
-module.exports = {
-  Ping,
-  Submit,
-  Read,
-  Delete,
 };
